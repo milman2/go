@@ -1,0 +1,15 @@
+.openapi-generator-ignore
+apis/DeviceApi.ts
+apis/index.ts
+docs/Device.md
+docs/DeviceApi.md
+docs/ErrNotFound.md
+docs/WithId.md
+docs/WithName.md
+index.ts
+models/Device.ts
+models/ErrNotFound.ts
+models/WithId.ts
+models/WithName.ts
+models/index.ts
+runtime.ts

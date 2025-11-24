@@ -59,5 +59,8 @@ curl http://localhost:8080/swagger/openapi.yaml
 
 # [openapi-generator-cli](https://github.com/OpenAPITools/openapi-generator-cli)
 ```shell
-npm install @openapitools/openapi-generator-cli
+# install java
+sudo apt update && sudo apt install -y default-jdk
+
+npx openapi-generator-cli generate -i openapi.yaml -o client -g typescript-fetch
 ```
