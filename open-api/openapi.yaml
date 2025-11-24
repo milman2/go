@@ -1,0 +1,85 @@
+﻿openapi: 3.0.3
+info:
+  title: Smart Home API
+  version: 0.0.0
+  description: OAS for Smart Home API
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: device
+    description: Device Management
+security:
+  - bearerAuth: []    
+paths:
+  /devices/{deviceId}:
+    get:
+      summary: Get Device
+      operationId: GetDevice
+      tags:
+        - device
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ULID'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              examples:
+                new_device:
+                  value: {}
+              schema:
+                $ref: '#/components/schemas/Device'
+        '404':
+          description: not-found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrNotFound'
+components:
+  schemas:
+    WithId:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          $ref: '#/components/schemas/ULID'
+    WithName:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+    Device:
+      # type: object
+      # required:
+      #   - id
+      #   - name
+      # properties:
+      #   id:
+      #     $ref: '#/components/schemas/ULID'
+      #   name:
+      #     type: string
+      allOf:
+        - $ref: '#/components/schemas/WithId'
+        - $ref: '#/components/schemas/WithName'
+    ErrNotFound:
+      type: object
+      required:
+        - err_msg
+      properties:
+        err_msg:
+          type: string
+    ULID:
+      type: string
+      minLength: 26
+      maxLength: 26
+      #format: ulid
+      x-go-type: ulid.ULID
+      x-go-type-import: 
+        path: github.com/oklog/ulid/v2
