@@ -1,0 +1,40 @@
+# 빌드된 실행 파일
+app
+spanner-server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# 테스트 바이너리
+*.test
+*.out
+
+# 의존성
+vendor/
+
+# Go 작업 공간
+go.work
+
+# yo 생성 파일
+models/*.yo.go
+models/
+
+# 환경 변수
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 로그
+*.log
+

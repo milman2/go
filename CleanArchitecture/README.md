@@ -228,20 +228,24 @@ func main() {
 cd CleanArchitecture
 go mod tidy
 
-# 옵션 1: Use Case 용어 사용 (기본)
+# 옵션 1: Use Case + 메모리 저장소 (기본)
 go run cmd/api/main.go
 
 # 옵션 2: Service 용어 사용
 go run cmd/api/main_with_service.go
+
+# 옵션 3: GORM + SQLite (데이터베이스) ⭐
+go run cmd/api/main_with_gorm.go
 
 # 또는 빌드 후 실행
 go build -o app cmd/api/main.go
 ./app
 ```
 
-**참고**: `main.go`와 `main_with_service.go`는 용어만 다르고 기능은 동일합니다!
-- `main.go` → **Use Case** 레이어 사용
-- `main_with_service.go` → **Service** 레이어 사용
+**비교**:
+- `main.go` → **Use Case** + **메모리** 저장소
+- `main_with_service.go` → **Service** + **메모리** 저장소
+- `main_with_gorm.go` → **Use Case** + **GORM** (SQLite) ⭐
 
 ## 📝 API 사용 예제
 
@@ -384,7 +388,13 @@ main.go (모든 것을 조립)
 
 ## 🔧 확장 방법
 
-### 1. 새 리포지토리 추가 (예: PostgreSQL)
+### 1. 새 리포지토리 추가 (예: PostgreSQL, GORM)
+
+**이미 구현된 리포지토리**:
+- ✅ **메모리**: `internal/repository/memory/` (기본)
+- ✅ **GORM**: `internal/repository/gorm/` (SQLite) ⭐
+
+**새 리포지토리 추가 예제**:
 ```go
 // internal/repository/postgres/user_repository.go
 type UserRepository struct {
@@ -394,6 +404,13 @@ type UserRepository struct {
 func (r *UserRepository) Create(user *domain.User) error {
     // PostgreSQL 구현
 }
+```
+
+**GORM 사용 예제**:
+```go
+// 이미 구현됨! internal/repository/gorm/user_repository.go
+userRepo := gorm.NewUserRepository(db)
+userUseCase := usecase.NewUserUseCase(userRepo)
 ```
 
 ### 2. 새 Use Case 추가

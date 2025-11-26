@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # Cloud Spanner Emulator
+  spanner:
+    image: gcr.io/cloud-spanner-emulator/emulator:1.5.33
+    ports:
+      - "9010:9010"  # gRPC
+      - "9020:9020"  # HTTP
+    environment:
+      - SPANNER_EMULATOR_HOST=localhost:9010
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9020"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spanner CLI (선택사항)
+  spanner-cli:
+    image: sjdaws/spanner-cli:v1.0.0
+    depends_on:
+      - spanner
+    environment:
+      - SPANNER_EMULATOR_HOST=spanner:9010
+    command: sh -c "echo this container is just for CLI access && tail -f /dev/null"
+
+volumes:
+  spanner-data:
+
