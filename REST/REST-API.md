@@ -41,5 +41,5 @@
 - ulule/limiter
 ## Compression
 - middleware.Gzip()
-## Sesson Management
+## Session Management
 - Gorilla Sessions

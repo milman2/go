@@ -1,0 +1,35 @@
+# 빌드된 실행 파일
+app
+clean-architecture
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# 테스트 바이너리
+*.test
+
+# 출력 파일
+*.out
+
+# 의존성 디렉토리
+vendor/
+
+# Go 작업 공간 파일
+go.work
+
+# IDE 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS 파일
+.DS_Store
+Thumbs.db
+
+# 로그 파일
+*.log
+
