@@ -228,13 +228,20 @@ func main() {
 cd CleanArchitecture
 go mod tidy
 
-# 서버 실행
+# 옵션 1: Use Case 용어 사용 (기본)
 go run cmd/api/main.go
+
+# 옵션 2: Service 용어 사용
+go run cmd/api/main_with_service.go
 
 # 또는 빌드 후 실행
 go build -o app cmd/api/main.go
 ./app
 ```
+
+**참고**: `main.go`와 `main_with_service.go`는 용어만 다르고 기능은 동일합니다!
+- `main.go` → **Use Case** 레이어 사용
+- `main_with_service.go` → **Service** 레이어 사용
 
 ## 📝 API 사용 예제
 
