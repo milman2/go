@@ -1,0 +1,45 @@
+# 빌드된 실행 파일
+beego-server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# 테스트 바이너리
+*.test
+
+# 출력 파일
+*.out
+
+# 의존성 디렉토리
+vendor/
+
+# Go 작업 공간 파일
+go.work
+
+# Beego 특정
+conf/app.conf.local
+lastupdate.tmp
+
+# 세션 파일
+tmp/
+
+# 로그 파일
+logs/
+*.log
+
+# Swagger 문서
+swagger/
+
+# IDE 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS 파일
+.DS_Store
+Thumbs.db
+
