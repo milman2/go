@@ -18,7 +18,7 @@ import (
 var (
 	projectID  = getEnv("SPANNER_PROJECT_ID", "test-project")
 	instanceID = getEnv("SPANNER_INSTANCE_ID", "test-instance")
-	databaseID = getEnv("SPANNER_DATABASE_ID", "test-database")
+	databaseID = getEnv("SPANNER_DATABASE_ID", "test-db")
 )
 
 func getEnv(key, defaultValue string) string {
