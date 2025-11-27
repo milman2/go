@@ -221,7 +221,7 @@ make help
 
 **가장 빠른 시작:**
 ```bash
-cd /home/milman2/go-api/go/Database/spanner
+cd /home/milman2/go-api/go/Database/Spanner
 make init
 ```
 

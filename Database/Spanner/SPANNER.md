@@ -248,7 +248,7 @@ DELETE FROM users WHERE created_at < TIMESTAMP('2024-01-01');
 ### 1. 기본 연결 테스트
 
 ```bash
-cd /home/milman2/go-api/go/Database/spanner
+cd /home/milman2/go-api/go/Database/Spanner
 ```
 
 **test_connection.go** 생성:

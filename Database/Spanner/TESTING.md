@@ -256,7 +256,7 @@ make docker-up
 ```bash
 # 현재 디렉토리 확인
 pwd
-# /home/milman2/go-api/go/Database/spanner 이어야 함
+# /home/milman2/go-api/go/Database/Spanner 이어야 함
 
 # 파일 확인
 ls test_*.go

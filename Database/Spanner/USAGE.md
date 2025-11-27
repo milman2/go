@@ -21,7 +21,7 @@
 ### 1단계: 전체 초기화
 
 ```bash
-cd /home/milman2/go-api/go/Database/spanner
+cd /home/milman2/go-api/go/Database/Spanner
 make init
 ```
 
