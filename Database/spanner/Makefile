@@ -4,7 +4,7 @@
 SPANNER_EMULATOR_HOST=localhost:9010
 SPANNER_PROJECT_ID=test-project
 SPANNER_INSTANCE_ID=test-instance
-SPANNER_DATABASE_ID=test-database
+SPANNER_DATABASE_ID=test-db
 
 # 경로 설정
 MIGRATIONS_DIR=migrations
