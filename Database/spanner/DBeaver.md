@@ -1,7 +1,8 @@
 ﻿# env variable
 - export SPANNER_EMULATOR_HOST=192.168.50.135:9010
-
+- setx SPANNER_EMULATOR_HOST 192.168.50.135:9010
 # 실제 cloud spanner(not emulator)를 사용하는 경우
+gcloud config list project
 gcloud auth application-default login
 
 # New Connection
