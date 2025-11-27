@@ -339,6 +339,57 @@ make show-schema
 4. **관계 추가**: Foreign Key 및 인덱스 활용
 5. **트랜잭션**: Spanner의 강력한 트랜잭션 기능 활용
 
+## 🧪 Spanner 테스트
+
+### 빠른 테스트
+
+```bash
+# 연결 테스트
+make test-connection
+
+# 테이블 정보 조회
+make test-tables
+
+# CRUD 테스트
+make test-crud
+
+# 종합 테스트 (모두 실행)
+make test-all
+```
+
+### SQL 직접 실행
+
+```bash
+# 단일 SQL 실행
+make sql SQL="SELECT * FROM users"
+
+# 카운트 조회
+make sql SQL="SELECT COUNT(*) FROM users"
+
+# 조건부 조회
+make sql SQL="SELECT * FROM users WHERE email LIKE '%@example.com'"
+```
+
+### Spanner CLI 사용
+
+```bash
+# CLI 접속
+make spanner-cli
+
+# CLI에서 사용
+spanner> SELECT * FROM users;
+spanner> \d users  # 테이블 정의
+spanner> \q        # 종료
+```
+
+### 상세 가이드
+
+테스트에 대한 자세한 내용은 다음 문서를 참고하세요:
+- **SPANNER.md**: 완벽한 테스트 가이드
+- **USAGE.md**: 사용법 및 예제
+- **test_*.go**: Go 테스트 스크립트
+- **test_all.sh**: 종합 테스트 스크립트
+
 ## 🎉 결론
 
 **yo + Spanner = 타입 안전 + 자동 코드 생성**

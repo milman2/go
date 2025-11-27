@@ -172,3 +172,34 @@ info: ## 현재 설정 정보
 	@echo "Docker Status:"
 	@docker ps --filter "name=spanner" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
+.PHONY: test-connection
+test-connection: ## Spanner 연결 테스트 (Go)
+	@echo "$(GREEN)🔌 Spanner 연결 테스트...$(NC)"
+	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) go run test_connection.go
+
+.PHONY: test-tables
+test-tables: ## 테이블 정보 조회 (Go)
+	@echo "$(GREEN)📊 테이블 정보 조회...$(NC)"
+	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) go run test_tables.go
+
+.PHONY: test-crud
+test-crud: ## CRUD 작업 테스트 (Go)
+	@echo "$(GREEN)🧪 CRUD 테스트...$(NC)"
+	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) go run test_crud.go
+
+.PHONY: test-all
+test-all: ## 종합 테스트 (연결+테이블+CRUD)
+	@./test_all.sh
+
+.PHONY: sql
+sql: ## SQL 실행 (사용: make sql SQL="SELECT * FROM users")
+	@if [ -z "$(SQL)" ]; then \
+		echo "$(YELLOW)사용법: make sql SQL=\"SELECT * FROM users\"$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)🔍 SQL 실행...$(NC)"
+	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
+		gcloud spanner databases execute-sql $(SPANNER_DATABASE_ID) \
+		--instance=$(SPANNER_INSTANCE_ID) \
+		--sql='$(SQL)'
+
