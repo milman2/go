@@ -15,19 +15,29 @@ Mercari에서 만든 Cloud Spanner용 코드 생성 도구로, 데이터베이�
 
 ```
 spanner/
-├── migrations/                  # 마이그레이션 파일
-│   ├── 000001_create_users.up.sql
-│   ├── 000001_create_users.down.sql
-│   ├── 000002_create_posts.up.sql
-│   └── 000002_create_posts.down.sql
+├── schema/                      # DDL 스키마 정의 (단일 진실 공급원)
+│   └── schema.sql              # 전체 스키마 (테이블, 인덱스)
 │
 ├── models/                      # yo가 생성하는 코드
 │   ├── user.yo.go              # User 모델 (자동 생성)
 │   ├── post.yo.go              # Post 모델 (자동 생성)
 │   └── yo_db.yo.go             # DB 헬퍼 (자동 생성)
 │
+├── ext/                         # 외부 도구 빌드 설정
+│   ├── hammer.go               # hammer 빌드
+│   ├── wrench.go               # wrench 빌드
+│   └── yo.go                   # yo 빌드
+│
+├── bin/ext/                     # 빌드된 도구들
+│   ├── hammer
+│   ├── wrench
+│   └── yo
+│
 ├── cmd/api/
 │   └── main.go                  # 서버 진입점
+│
+├── migrations/                  # DML 마이그레이션 (선택사항)
+│   └── dml/                    # 샘플 데이터, 마스터 데이터
 │
 ├── docker-compose.yml           # Spanner emulator
 ├── Makefile                     # 자동화 스크립트
@@ -37,18 +47,7 @@ spanner/
 
 ## 🚀 빠른 시작
 
-### 1. 필수 도구 설치
-
-```bash
-make install-tools
-```
-
-설치되는 도구:
-- **yo**: Spanner 코드 생성기
-- **hammer**: 마이그레이션 도구 #1
-- **wrench**: 마이그레이션 도구 #2
-
-### 2. 전체 초기화 (한번에)
+### 1. 전체 초기화 (한번에)
 
 ```bash
 make init
@@ -56,9 +55,34 @@ make init
 
 이 명령어는:
 1. ✅ Docker Spanner emulator 시작
-2. ✅ Instance & Database 생성
-3. ✅ 마이그레이션 실행
-4. ✅ yo로 코드 생성
+2. ✅ 외부 도구 빌드 (hammer, wrench, yo)
+3. ✅ Instance 생성
+4. ✅ Database 및 스키마 생성 (hammer)
+5. ✅ yo로 코드 생성
+
+### 2. Spanner 주요 기능
+
+**DEFAULT 값**:
+```sql
+published BOOL NOT NULL DEFAULT (false)  -- 괄호 필수!
+```
+
+**FOREIGN KEY**:
+```sql
+-- 기본 지원, CASCADE는 미지원
+FOREIGN KEY (user_id) REFERENCES users (id)
+```
+
+**INTERLEAVE** (부모-자식 관계):
+```sql
+-- CASCADE DELETE 지원 + 성능 최적화
+CREATE TABLE comments (
+  user_id STRING(36) NOT NULL,
+  comment_id STRING(36) NOT NULL,
+  ...
+) PRIMARY KEY (user_id, comment_id),
+  INTERLEAVE IN PARENT users ON DELETE CASCADE;
+```
 
 ### 3. 서버 실행
 
@@ -74,66 +98,112 @@ make test
 
 ## 📋 Makefile 명령어 전체 목록
 
+### 기본 명령어
 ```bash
 make help                # 모든 명령어 보기
-make docker-up           # Docker 시작
-make docker-down         # Docker 중지
-make docker-ps           # Docker 상태 확인
-make setup-instance      # Instance/Database 생성
-make migrate-up-hammer   # Hammer로 마이그레이션 UP
-make migrate-down-hammer # Hammer로 마이그레이션 DOWN
-make migrate-up-wrench   # Wrench로 마이그레이션 UP
-make migrate-down-wrench # Wrench로 마이그레이션 DOWN
-make generate-yo         # yo로 코드 생성
-make clean               # 생성된 파일 삭제
-make reset               # DB 리셋 & 코드 재생성
+make init                # 전체 초기화 (Docker + 도구 빌드 + DB 생성)
 make run                 # 서버 실행
 make test                # API 테스트
-make spanner-cli         # Spanner CLI 접속
-make show-schema         # 스키마 확인
 make info                # 설정 정보 보기
 ```
 
-## 🔧 마이그레이션 도구 비교
-
-### Hammer vs Wrench
-
-| 특징 | Hammer | Wrench |
-|------|--------|--------|
-| **개발사** | daichirata | Google Cloud Spanner Ecosystem |
-| **방식** | 파일 기반 | 파일 기반 |
-| **설정** | CLI 플래그 | CLI 플래그 |
-| **복잡도** | 간단 | 간단 |
-| **상태 추적** | ✅ | ✅ |
-
-**결론**: 둘 다 유사, 취향에 따라 선택
-
-### Hammer 사용법
-
+### Docker 관리
 ```bash
-# UP
-SPANNER_EMULATOR_HOST=localhost:9010 \
-hammer -p test-project -i test-instance -d test-database \
-  -m migrations up
-
-# DOWN
-hammer -p test-project -i test-instance -d test-database \
-  -m migrations down
+make docker-up           # Docker 시작
+make docker-down         # Docker 중지
+make docker-ps           # Docker 상태 확인
 ```
 
-### Wrench 사용법
-
+### 데이터베이스 관리
 ```bash
-# UP
-SPANNER_EMULATOR_HOST=localhost:9010 \
-wrench migrate up \
-  --directory migrations \
-  --database projects/test-project/instances/test-instance/databases/test-database
+make setup-instance      # Instance 생성
+make createdb            # Database 생성 (hammer create)
+make dropdb              # Database 삭제 (wrench drop)
+make resetdb             # Database 리셋 (삭제 후 재생성)
+make reset               # DB 리셋 + 코드 재생성
+```
 
-# DOWN
-wrench migrate down \
-  --directory migrations \
-  --database projects/test-project/instances/test-instance/databases/test-database
+### 스키마 관리 (hammer)
+```bash
+make db-apply            # 스키마 변경사항 적용
+make db-diff             # 현재 DB와 스키마 파일 차이 확인
+make db-export           # 현재 스키마를 파일로 내보내기
+make show-schema         # 현재 스키마 확인
+```
+
+### DML 관리 (wrench)
+```bash
+make migrate-dml         # DML 마이그레이션 실행
+```
+
+### 코드 생성 (yo)
+```bash
+make generate-models     # Go 코드 생성
+make build/ext           # 외부 도구 빌드
+make clean               # 생성된 파일 삭제
+```
+
+### 개발 도구
+```bash
+make spanner-cli         # Spanner CLI 접속
+make test-connection     # 연결 테스트
+make test-tables         # 테이블 정보 조회
+make test-crud           # CRUD 테스트
+make test-all            # 종합 테스트
+make sql SQL="..."       # SQL 직접 실행
+```
+
+## 🔧 도구 역할 구분
+
+### Hammer - DDL 스키마 관리
+
+**용도**: 데이터베이스 스키마(테이블, 인덱스) 관리
+
+| 명령어 | 설명 |
+|--------|------|
+| `hammer create` | 스키마 파일로부터 데이터베이스 생성 |
+| `hammer apply` | 스키마 변경사항을 기존 DB에 적용 |
+| `hammer diff` | 현재 DB 스키마와 파일의 차이점 확인 |
+| `hammer export` | 현재 DB 스키마를 SQL 파일로 내보내기 |
+
+**사용 예시**:
+```bash
+# 데이터베이스 생성
+hammer create spanner://projects/test-project/instances/test-instance/databases/test-db schema/schema.sql
+
+# 스키마 변경사항 적용
+hammer apply spanner://projects/test-project/instances/test-instance/databases/test-db schema/schema.sql
+
+# 스키마 차이 확인
+hammer diff spanner://projects/test-project/instances/test-instance/databases/test-db schema/schema.sql
+```
+
+### Wrench - 데이터베이스 관리
+
+**용도**: 데이터베이스 삭제 및 DML(데이터 조작어) 실행
+
+| 명령어 | 설명 |
+|--------|------|
+| `wrench drop` | 데이터베이스 완전 삭제 |
+| `wrench apply --dml` | DML 파일 실행 (INSERT, UPDATE, DELETE) |
+
+**사용 예시**:
+```bash
+# 데이터베이스 삭제
+wrench drop --project test-project --instance test-instance --database test-db
+
+# DML 실행
+wrench apply --dml migrations/dml/sample_data.sql
+```
+
+### yo - Go 코드 생성
+
+**용도**: Spanner 데이터베이스 스키마로부터 Go 코드 자동 생성
+
+**사용 예시**:
+```bash
+# 모델 코드 생성
+yo test-project test-instance test-db -o models -p models --ignore-tables SchemaMigrations
 ```
 
 ## 🔨 yo 코드 생성
@@ -208,7 +278,7 @@ func main() {
     
     // Spanner 클라이언트 생성
     client, _ := spanner.NewClient(ctx, 
-        "projects/test-project/instances/test-instance/databases/test-database")
+        "projects/test-project/instances/test-instance/databases/test-db")
     defer client.Close()
     
     // 사용자 생성
@@ -264,21 +334,39 @@ docker run -d -p 9010:9010 -p 9020:9020 \
 
 ## 🎯 워크플로우
 
-### 일반적인 개발 흐름
+### 스키마 변경 워크플로우
 
 ```
-1. 마이그레이션 파일 작성
-   migrations/000003_add_column.up.sql
+1. 스키마 파일 수정
+   schema/schema.sql 편집
    
-2. 마이그레이션 실행
-   make migrate-up-wrench
+2. 변경사항 확인
+   make db-diff
    
-3. yo로 코드 재생성
-   make generate-yo
+3. 변경사항 적용
+   make db-apply
    
-4. 생성된 모델 사용
+4. Go 코드 재생성
+   make generate-models
+   
+5. 생성된 모델 사용
    import "project/models"
    user := &models.User{...}
+```
+
+### 전체 리셋
+
+```bash
+# DB 완전 리셋 + 코드 재생성
+make reset
+```
+
+### 샘플 데이터 추가
+
+```bash
+# 1. migrations/dml/ 디렉토리에 SQL 파일 추가
+# 2. DML 마이그레이션 실행
+make migrate-dml
 ```
 
 ## ✨ yo의 장점
@@ -299,30 +387,46 @@ docker run -d -p 9010:9010 -p 9020:9020 \
 - 모든 테이블에 동일한 패턴
 - 유지보수 용이
 
-## 🔄 마이그레이션 워크플로우
+## 📝 스키마 관리 Best Practices
 
-### Hammer 사용
+### 단일 진실 공급원 (Single Source of Truth)
 
-```bash
-# 마이그레이션 실행
-make migrate-up-hammer
+`schema/schema.sql` 파일이 전체 스키마의 유일한 소스입니다.
 
-# 롤백
-make migrate-down-hammer
+```sql
+-- schema/schema.sql
+-- Spanner 주요 기능:
+-- 1. DEFAULT 값: DEFAULT (값) 형식으로 괄호 필수
+-- 2. FOREIGN KEY: 기본 지원 (CASCADE 미지원)
+-- 3. INTERLEAVE: 부모-자식 관계 + CASCADE DELETE 지원 + 성능 최적화
+
+CREATE TABLE users (
+  id STRING(36) NOT NULL,
+  email STRING(255) NOT NULL,
+  name STRING(100) NOT NULL,
+  created_at TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+  updated_at TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+) PRIMARY KEY (id);
+
+CREATE UNIQUE INDEX users_email_idx ON users(email);
 ```
 
-### Wrench 사용 (권장)
+### 스키마 변경 절차
 
-```bash
-# 마이그레이션 실행
-make migrate-up-wrench
+1. **로컬에서 변경사항 확인**
+   ```bash
+   make db-diff
+   ```
 
-# 롤백
-make migrate-down-wrench
+2. **변경사항 적용**
+   ```bash
+   make db-apply
+   ```
 
-# 상태 확인
-make show-schema
-```
+3. **코드 재생성**
+   ```bash
+   make generate-models
+   ```
 
 ## 📚 추가 학습 자료
 
@@ -333,11 +437,12 @@ make show-schema
 
 ## 🎓 다음 단계
 
-1. **마이그레이션 추가**: `migrations/` 디렉토리에 새 파일 추가
-2. **코드 재생성**: `make generate-yo`
+1. **스키마 확장**: `schema/schema.sql`에 새 테이블 추가
+2. **코드 재생성**: `make generate-models`
 3. **Clean Architecture 적용**: Repository 레이어에서 yo 모델 사용
-4. **관계 추가**: Foreign Key 및 인덱스 활용
+4. **관계 활용**: Foreign Key, Index, INTERLEAVE 활용
 5. **트랜잭션**: Spanner의 강력한 트랜잭션 기능 활용
+6. **샘플 데이터**: `migrations/dml/` 디렉토리에 샘플 데이터 추가
 
 ## 🧪 Spanner 테스트
 

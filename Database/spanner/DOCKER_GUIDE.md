@@ -36,7 +36,7 @@ gcloud spanner instances create test-instance \
   --nodes=1
 
 # Database 생성
-gcloud spanner databases create test-database \
+gcloud spanner databases create test-db \
   --instance=test-instance
 ```
 
@@ -163,7 +163,7 @@ docker-compose up -d spanner-cli
 docker-compose exec spanner-cli spanner-cli \
   -p test-project \
   -i test-instance \
-  -d test-database
+  -d test-db
 ```
 
 또는 Makefile:
@@ -301,7 +301,7 @@ export SPANNER_DATABASE_ID=dev-database
 export SPANNER_EMULATOR_HOST=localhost:9010
 export SPANNER_PROJECT_ID=test-project
 export SPANNER_INSTANCE_ID=test-instance
-export SPANNER_DATABASE_ID=test-database
+export SPANNER_DATABASE_ID=test-db
 ```
 
 ### 프로덕션 (Production)

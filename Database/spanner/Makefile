@@ -1,4 +1,13 @@
-# Makefile for Google Cloud Spanner + yo
+# Makefile for Google Cloud Spanner + hammer + yo
+
+# Makefile path information
+MAKEFILE_PATH:=$(abspath $(lastword $(MAKEFILE_LIST)))
+MAKEFILE_DIR:=$(patsubst %/,%,$(dir ${MAKEFILE_PATH}))
+
+# Directories
+CWD_DIR:=${MAKEFILE_DIR:%/=%}
+BIN_DIR:=${CWD_DIR}/bin
+EXT_BIN_DIR:=${BIN_DIR}/ext
 
 # Spanner 설정
 SPANNER_EMULATOR_HOST=localhost:9010
@@ -7,6 +16,8 @@ SPANNER_INSTANCE_ID=test-instance
 SPANNER_DATABASE_ID=test-db
 
 # 경로 설정
+SCHEMA_DIR=schema
+SCHEMA_FILE=${SCHEMA_DIR}/schema.sql
 MIGRATIONS_DIR=migrations
 MODELS_DIR=models
 
@@ -37,8 +48,8 @@ docker-ps: ## Docker 컨테이너 상태 확인
 	docker-compose ps
 
 .PHONY: setup-instance
-setup-instance: ## Spanner Instance와 Database 생성
-	@echo "$(GREEN)📦 Creating Spanner instance and database...$(NC)"
+setup-instance: ## Spanner Instance 생성 (데이터베이스는 createdb에서 생성)
+	@echo "$(GREEN)📦 Creating Spanner instance...$(NC)"
 	@gcloud config set auth/disable_credentials true
 	@gcloud config set project $(SPANNER_PROJECT_ID)
 	@gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
@@ -46,82 +57,143 @@ setup-instance: ## Spanner Instance와 Database 생성
 		--config=emulator-config \
 		--description="Test Instance" \
 		--nodes=1 || true
-	@gcloud spanner databases create $(SPANNER_DATABASE_ID) \
-		--instance=$(SPANNER_INSTANCE_ID) || true
-	@echo "$(GREEN)✅ Instance and database ready$(NC)"
+	@echo "$(GREEN)✅ Instance ready$(NC)"
 
-.PHONY: migrate-up-hammer
-migrate-up-hammer: ## Hammer로 마이그레이션 UP
-	@echo "$(GREEN)🔨 Running migrations with Hammer...$(NC)"
+.PHONY: createdb
+createdb: ${EXT_BIN_DIR}/wrench ${EXT_BIN_DIR}/hammer ## Spanner 데이터베이스 생성 (hammer create 사용)
+	@echo "$(GREEN)🔨 Creating database with hammer...$(NC)"
 	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
-		hammer -p $(SPANNER_PROJECT_ID) -i $(SPANNER_INSTANCE_ID) -d $(SPANNER_DATABASE_ID) \
-		-m $(MIGRATIONS_DIR) up
-	@echo "$(GREEN)✅ Hammer migration completed$(NC)"
-
-.PHONY: migrate-down-hammer
-migrate-down-hammer: ## Hammer로 마이그레이션 DOWN
-	@echo "$(YELLOW)⬇️ Rolling back migrations with Hammer...$(NC)"
+		${EXT_BIN_DIR}/wrench drop --project $(SPANNER_PROJECT_ID) --instance $(SPANNER_INSTANCE_ID) --database $(SPANNER_DATABASE_ID) 2>/dev/null || true
 	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
-		hammer -p $(SPANNER_PROJECT_ID) -i $(SPANNER_INSTANCE_ID) -d $(SPANNER_DATABASE_ID) \
-		-m $(MIGRATIONS_DIR) down
-	@echo "$(GREEN)✅ Hammer rollback completed$(NC)"
+		${EXT_BIN_DIR}/hammer create spanner://projects/$(SPANNER_PROJECT_ID)/instances/$(SPANNER_INSTANCE_ID)/databases/$(SPANNER_DATABASE_ID) $(SCHEMA_FILE)
+	@echo "$(GREEN)✅ Database created from $(SCHEMA_FILE)$(NC)"
 
-.PHONY: migrate-up-wrench
-migrate-up-wrench: ## Wrench로 마이그레이션 UP
-	@echo "$(GREEN)🔧 Running migrations with Wrench...$(NC)"
+.PHONY: db-apply
+db-apply: ${EXT_BIN_DIR}/hammer ## 스키마 변경사항 적용 (hammer apply 사용)
+	@echo "$(GREEN)🔨 Applying schema changes with hammer...$(NC)"
 	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
-		wrench migrate up \
-		--directory $(MIGRATIONS_DIR) \
-		--database projects/$(SPANNER_PROJECT_ID)/instances/$(SPANNER_INSTANCE_ID)/databases/$(SPANNER_DATABASE_ID)
-	@echo "$(GREEN)✅ Wrench migration completed$(NC)"
+		${EXT_BIN_DIR}/hammer apply spanner://projects/$(SPANNER_PROJECT_ID)/instances/$(SPANNER_INSTANCE_ID)/databases/$(SPANNER_DATABASE_ID) $(SCHEMA_FILE)
+	@echo "$(GREEN)✅ Schema changes applied$(NC)"
 
-.PHONY: migrate-down-wrench
-migrate-down-wrench: ## Wrench로 마이그레이션 DOWN
-	@echo "$(YELLOW)⬇️ Rolling back migrations with Wrench...$(NC)"
+.PHONY: db-diff
+db-diff: ${EXT_BIN_DIR}/hammer ## 현재 DB와 스키마 파일 차이 확인 (hammer diff 사용)
+	@echo "$(GREEN)🔍 Checking schema differences...$(NC)"
 	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
-		wrench migrate down \
-		--directory $(MIGRATIONS_DIR) \
-		--database projects/$(SPANNER_PROJECT_ID)/instances/$(SPANNER_INSTANCE_ID)/databases/$(SPANNER_DATABASE_ID)
-	@echo "$(GREEN)✅ Wrench rollback completed$(NC)"
+		${EXT_BIN_DIR}/hammer diff spanner://projects/$(SPANNER_PROJECT_ID)/instances/$(SPANNER_INSTANCE_ID)/databases/$(SPANNER_DATABASE_ID) $(SCHEMA_FILE)
 
-.PHONY: generate-yo
-generate-yo: ## yo로 코드 생성 (스키마 → Go 코드)
+.PHONY: db-export
+db-export: ${EXT_BIN_DIR}/hammer ## 현재 스키마를 파일로 내보내기 (hammer export 사용)
+	@echo "$(GREEN)📤 Exporting schema with hammer...$(NC)"
+	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
+		${EXT_BIN_DIR}/hammer export spanner://projects/$(SPANNER_PROJECT_ID)/instances/$(SPANNER_INSTANCE_ID)/databases/$(SPANNER_DATABASE_ID) > exported_schema.sql
+	@echo "$(GREEN)✅ Schema exported to exported_schema.sql$(NC)"
+
+.PHONY: dropdb
+dropdb: ${EXT_BIN_DIR}/wrench ## 데이터베이스 삭제 (wrench drop 사용)
+	@echo "$(YELLOW)⚠️  데이터베이스를 삭제합니다!$(NC)"
+	@read -p "계속하시겠습니까? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		echo "$(YELLOW)Dropping database...$(NC)"; \
+		SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
+		${EXT_BIN_DIR}/wrench drop --project $(SPANNER_PROJECT_ID) --instance $(SPANNER_INSTANCE_ID) --database $(SPANNER_DATABASE_ID); \
+		echo "$(GREEN)✅ Database dropped$(NC)"; \
+	fi
+
+.PHONY: resetdb
+resetdb: createdb ## 데이터베이스 리셋 (삭제 후 재생성)
+	@echo "$(GREEN)✅ Database reset completed$(NC)"
+
+.PHONY: seed-data
+seed-data: ## 샘플 데이터 삽입 (Go 스크립트 사용)
+	@echo "$(GREEN)🌱 Seeding sample data...$(NC)"
+	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
+		SPANNER_PROJECT_ID=$(SPANNER_PROJECT_ID) \
+		SPANNER_INSTANCE_ID=$(SPANNER_INSTANCE_ID) \
+		SPANNER_DATABASE_ID=$(SPANNER_DATABASE_ID) \
+		go run scripts/seed_data.go
+	@echo "$(GREEN)✅ Sample data seeded$(NC)"
+
+.PHONY: clear-data
+clear-data: ## 모든 데이터 삭제 (테이블 구조는 유지)
+	@echo "$(YELLOW)⚠️  모든 데이터를 삭제합니다!$(NC)"
+	@read -p "계속하시겠습니까? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		echo "$(YELLOW)🗑️  Clearing all data...$(NC)"; \
+		SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
+		gcloud spanner databases execute-sql $(SPANNER_DATABASE_ID) \
+			--instance=$(SPANNER_INSTANCE_ID) \
+			--sql="DELETE FROM posts WHERE TRUE; DELETE FROM users WHERE TRUE;" || true; \
+		echo "$(GREEN)✅ All data cleared$(NC)"; \
+	fi
+
+.PHONY: test-query
+test-query: ## 샘플 쿼리 테스트
+	@echo "$(GREEN)🔍 Running test queries...$(NC)"
+	@echo ""
+	@echo "$(YELLOW)📊 Users count:$(NC)"
+	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
+		gcloud spanner databases execute-sql $(SPANNER_DATABASE_ID) \
+		--instance=$(SPANNER_INSTANCE_ID) \
+		--sql="SELECT COUNT(*) as user_count FROM users"
+	@echo ""
+	@echo "$(YELLOW)📊 Posts count:$(NC)"
+	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
+		gcloud spanner databases execute-sql $(SPANNER_DATABASE_ID) \
+		--instance=$(SPANNER_INSTANCE_ID) \
+		--sql="SELECT COUNT(*) as post_count FROM posts"
+	@echo ""
+	@echo "$(YELLOW)📊 Published posts by user:$(NC)"
+	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
+		gcloud spanner databases execute-sql $(SPANNER_DATABASE_ID) \
+		--instance=$(SPANNER_INSTANCE_ID) \
+		--sql="SELECT u.name, COUNT(p.id) as post_count FROM users u LEFT JOIN posts p ON u.id = p.user_id WHERE p.published = TRUE OR p.published IS NULL GROUP BY u.name ORDER BY post_count DESC"
+
+.PHONY: migrate-dml
+migrate-dml: ${EXT_BIN_DIR}/wrench ## DML 마이그레이션 실행 (wrench apply --dml) - 더 이상 사용 안 함
+	@echo "$(YELLOW)⚠️  이 명령어는 더 이상 사용되지 않습니다.$(NC)"
+	@echo "$(YELLOW)대신 'make seed-data'를 사용하세요.$(NC)"
+
+.PHONY: generate-models
+generate-models: ${EXT_BIN_DIR}/yo ## yo로 코드 생성 (스키마 → Go 코드)
 	@echo "$(GREEN)🔨 Generating code with yo...$(NC)"
-	@rm -rf $(MODELS_DIR)
+	@rm -rf $(MODELS_DIR)/*.yo.go
 	@mkdir -p $(MODELS_DIR)
 	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
-		yo $(SPANNER_PROJECT_ID) $(SPANNER_INSTANCE_ID) $(SPANNER_DATABASE_ID) \
-		-o $(MODELS_DIR) -p models
+		${EXT_BIN_DIR}/yo $(SPANNER_PROJECT_ID) $(SPANNER_INSTANCE_ID) $(SPANNER_DATABASE_ID) \
+		-o $(MODELS_DIR) -p models --ignore-tables SchemaMigrations
 	@echo "$(GREEN)✅ Code generation completed: $(MODELS_DIR)/$(NC)"
-	@ls -lh $(MODELS_DIR)/
+	@ls -lh $(MODELS_DIR)/*.yo.go
 
-.PHONY: install-tools
-install-tools: ## 필요한 도구 설치
-	@echo "$(GREEN)📦 Installing tools...$(NC)"
-	@echo "Installing hammer..."
-	@go install github.com/daichirata/hammer@v0.6.0
-	@echo "Installing wrench..."
-	@go install github.com/cloudspannerecosystem/wrench@v1.0.4
-	@echo "Installing yo..."
-	@go install go.mercari.io/yo@latest
-	@echo "$(GREEN)✅ All tools installed$(NC)"
-	@echo "  - hammer: $(shell which hammer)"
-	@echo "  - wrench: $(shell which wrench)"
-	@echo "  - yo: $(shell which yo)"
+.PHONY: build/ext
+build/ext: ${EXT_BIN_DIR}/hammer ${EXT_BIN_DIR}/wrench ${EXT_BIN_DIR}/yo ## 외부 도구 빌드 (hammer, wrench, yo)
+	@echo "$(GREEN)✅ External tools built$(NC)"
+	@echo "  - hammer: ${EXT_BIN_DIR}/hammer"
+	@echo "  - wrench: ${EXT_BIN_DIR}/wrench"
+	@echo "  - yo: ${EXT_BIN_DIR}/yo"
+
+${EXT_BIN_DIR}/%: go.mod go.sum ${CWD_DIR}/ext/%.go
+	@mkdir -p $(dir $@)
+	@echo "$(GREEN)📦 Building $(notdir $@)...$(NC)"
+	@GO_ARTIFACT_PATH=$@ go generate -tags ext $(patsubst ${EXT_BIN_DIR}/%,${CWD_DIR}/ext/%.go,$@)
 
 .PHONY: init
-init: docker-up install-tools setup-instance migrate-up-wrench generate-yo ## 전체 초기화 (한번에)
+init: docker-up build/ext setup-instance createdb generate-models ## 전체 초기화 (한번에)
 	@echo ""
 	@echo "$(GREEN)🎉 Spanner 환경 초기화 완료!$(NC)"
 	@echo "=================================="
 	@echo "  ✅ Docker Spanner emulator 실행"
-	@echo "  ✅ Instance & Database 생성"
-	@echo "  ✅ 마이그레이션 완료"
+	@echo "  ✅ 외부 도구 빌드 (hammer, wrench, yo)"
+	@echo "  ✅ Instance 생성"
+	@echo "  ✅ Database 및 스키마 생성 (hammer)"
 	@echo "  ✅ yo 코드 생성 완료"
 	@echo ""
 	@echo "$(YELLOW)📝 다음 단계:$(NC)"
 	@echo "  make run          # 서버 실행"
 	@echo "  make test         # API 테스트"
+	@echo "  make db-diff      # 스키마 차이 확인"
+	@echo "  make db-apply     # 스키마 변경 적용"
 
 .PHONY: clean
 clean: ## 생성된 파일 정리
@@ -130,7 +202,7 @@ clean: ## 생성된 파일 정리
 	@echo "$(GREEN)✅ Cleaned$(NC)"
 
 .PHONY: reset
-reset: migrate-down-wrench migrate-up-wrench generate-yo ## DB 리셋 및 코드 재생성
+reset: resetdb generate-models ## DB 리셋 및 코드 재생성
 	@echo "$(GREEN)✅ Database reset and code regenerated$(NC)"
 
 .PHONY: run
@@ -149,12 +221,10 @@ spanner-cli: ## Spanner CLI 접속
 	docker-compose exec spanner-cli spanner-cli -p $(SPANNER_PROJECT_ID) -i $(SPANNER_INSTANCE_ID) -d $(SPANNER_DATABASE_ID)
 
 .PHONY: show-schema
-show-schema: ## 현재 스키마 확인
+show-schema: ${EXT_BIN_DIR}/hammer ## 현재 스키마 확인 (hammer export)
 	@echo "$(GREEN)📋 Current schema:$(NC)"
 	@SPANNER_EMULATOR_HOST=$(SPANNER_EMULATOR_HOST) \
-		wrench migrate status \
-		--directory $(MIGRATIONS_DIR) \
-		--database projects/$(SPANNER_PROJECT_ID)/instances/$(SPANNER_INSTANCE_ID)/databases/$(SPANNER_DATABASE_ID)
+		${EXT_BIN_DIR}/hammer export spanner://projects/$(SPANNER_PROJECT_ID)/instances/$(SPANNER_INSTANCE_ID)/databases/$(SPANNER_DATABASE_ID)
 
 .PHONY: info
 info: ## 현재 설정 정보

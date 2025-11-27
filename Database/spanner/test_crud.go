@@ -16,7 +16,7 @@ func main() {
 	ctx := context.Background()
 	os.Setenv("SPANNER_EMULATOR_HOST", "localhost:9010")
 
-	database := "projects/test-project/instances/test-instance/databases/test-database"
+	database := "projects/test-project/instances/test-instance/databases/test-db"
 	client, err := spanner.NewClient(ctx, database)
 	if err != nil {
 		log.Fatalf("❌ 연결 실패: %v", err)

@@ -41,27 +41,41 @@ make setup-instance
 
 **무엇을 하나요?**:
 - Spanner Instance 생성: `test-instance`
-- Spanner Database 생성: `test-database`
+- Spanner Database 생성: `test-db`
 
-### 3️⃣ 마이그레이션 실행
+### 3️⃣ 데이터베이스 생성 (hammer)
 
 ```bash
-# Wrench 사용 (권장)
-make migrate-up-wrench
-
-# 또는 Hammer 사용
-make migrate-up-hammer
+make createdb
 ```
 
 **무엇을 하나요?**:
-- `migrations/*.up.sql` 파일 실행
+- `schema/schema.sql` 파일 읽기
+- 데이터베이스 생성 및 스키마 적용
 - 테이블 생성 (users, posts)
 - 인덱스 생성
 
-### 4️⃣ yo로 코드 생성
+### 4️⃣ 샘플 데이터 삽입 (선택사항)
 
 ```bash
-make generate-yo
+make seed-data
+```
+
+**무엇을 하나요?**:
+- 3명의 샘플 사용자 생성
+- 5개의 샘플 게시글 생성
+- 개발/테스트에 유용
+
+**확인**:
+```bash
+make test-query
+# 사용자 3명, 게시글 5개 확인
+```
+
+### 5️⃣ yo로 코드 생성
+
+```bash
+make generate-models
 ```
 
 **무엇을 하나요?**:
@@ -77,13 +91,13 @@ models/
 └── yo_db.yo.go      # DB 헬퍼 함수
 ```
 
-### 5️⃣ 서버 실행
+### 6️⃣ 서버 실행
 
 ```bash
 make run
 ```
 
-### 6️⃣ API 테스트
+### 7️⃣ API 테스트
 
 ```bash
 # 다른 터미널에서
@@ -96,15 +110,21 @@ make test
 
 ```bash
 # 스키마 변경 시
-1. migrations/ 에 새 SQL 파일 추가
-2. make migrate-up-wrench
-3. make generate-yo
+1. schema/schema.sql 파일 수정
+2. make db-diff          # 변경사항 확인
+3. make db-apply         # 변경사항 적용
+4. make generate-models  # 코드 재생성
 
 # DB 리셋
-make reset
+make resetdb             # DB 전체 리셋
+make seed-data           # 샘플 데이터 다시 삽입
+
+# 데이터만 리셋
+make clear-data          # 데이터 삭제
+make seed-data           # 샘플 데이터 삽입
 
 # 생성된 코드 확인
-ls -lh models/
+ls -lh models/*.yo.go
 ```
 
 ### 디버깅
@@ -144,23 +164,29 @@ docker ps | grep spanner
 # 사용
 export SPANNER_EMULATOR_HOST=localhost:9010
 make setup-instance
-make migrate-up-wrench
-make generate-yo
+make createdb
+make generate-models
 ```
 
-### 마이그레이션 파일 작성
+### 스키마 파일 수정
 
 ```sql
--- migrations/000003_add_column.up.sql
-ALTER TABLE users ADD COLUMN age INT64;
-
--- migrations/000003_add_column.down.sql
-ALTER TABLE users DROP COLUMN age;
+-- schema/schema.sql
+CREATE TABLE users (
+  id STRING(36) NOT NULL,
+  email STRING(255) NOT NULL,
+  name STRING(100) NOT NULL,
+  age INT64,  -- ✨ 새 컬럼 추가
+  created_at TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+  updated_at TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+) PRIMARY KEY (id);
 ```
 
 그리고:
 ```bash
-make reset  # 마이그레이션 + 코드 재생성
+make db-diff   # 차이 확인
+make db-apply  # 적용
+make generate-models  # 코드 재생성
 ```
 
 ## 🎉 완성!

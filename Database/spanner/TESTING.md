@@ -67,11 +67,11 @@ gcloud spanner instances list
 gcloud spanner databases list --instance=test-instance
 
 # DDL 조회
-gcloud spanner databases ddl describe test-database \
+gcloud spanner databases ddl describe test-db \
   --instance=test-instance
 
 # SQL 실행
-gcloud spanner databases execute-sql test-database \
+gcloud spanner databases execute-sql test-db \
   --instance=test-instance \
   --sql="SELECT * FROM users LIMIT 5"
 ```
@@ -139,7 +139,7 @@ make test-crud
 ```
 ✅ Spanner 연결 성공!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Database: projects/test-project/instances/test-instance/databases/test-database
+Database: projects/test-project/instances/test-instance/databases/test-db
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🔍 연결 테스트 쿼리 실행...

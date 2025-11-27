@@ -93,20 +93,18 @@ make setup-instance
 #### Wrench 사용 (권장)
 
 ```bash
-# UP
+# 스키마 적용 (hammer 사용)
 SPANNER_EMULATOR_HOST=localhost:9010 \
-wrench migrate up \
-  --directory migrations \
-  --database projects/test-project/instances/test-instance/databases/test-database
+hammer create spanner://projects/test-project/instances/test-instance/databases/test-db schema/schema.sql
 ```
 
 **또는:**
 
 ```bash
-make migrate-up-wrench
+make createdb  # hammer create 사용
 ```
 
-#### Hammer 사용
+#### ~~Hammer 사용~~ (더 이상 사용 안 함)
 
 ```bash
 # UP
@@ -377,16 +375,21 @@ make docker-ps           # 상태 확인
 
 # 초기 설정
 make setup-instance      # Instance/Database 생성
-make install-tools       # yo, hammer, wrench 설치
+make build/ext           # yo, hammer, wrench 빌드
 
-# 마이그레이션
-make migrate-up-wrench   # Wrench UP
-make migrate-down-wrench # Wrench DOWN
-make migrate-up-hammer   # Hammer UP
-make migrate-down-hammer # Hammer DOWN
+# 데이터베이스 & 스키마
+make createdb            # 데이터베이스 생성 (hammer)
+make db-apply            # 스키마 변경 적용 (hammer)
+make db-diff             # 스키마 차이 확인 (hammer)
+make resetdb             # DB 리셋 (삭제 후 재생성)
+
+# 샘플 데이터
+make seed-data           # 샘플 데이터 삽입
+make clear-data          # 모든 데이터 삭제
+make test-query          # 샘플 쿼리 테스트
 
 # 코드 생성
-make generate-yo         # yo 실행
+make generate-models     # yo 실행 (이전: generate-yo)
 
 # 통합
 make init                # 전체 초기화
@@ -435,9 +438,9 @@ make setup-instance
 # 상태 확인
 make show-schema
 
-# 롤백 후 재시도
-make migrate-down-wrench
-make migrate-up-wrench
+# 완전 리셋 후 재시도
+make resetdb
+make seed-data
 ```
 
 ### Spanner 연결 실패

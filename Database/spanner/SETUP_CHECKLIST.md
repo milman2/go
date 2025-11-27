@@ -87,7 +87,7 @@ gcloud spanner instances create test-instance \
 
 ### Database 생성
 ```bash
-gcloud spanner databases create test-database \
+gcloud spanner databases create test-db \
   --instance=test-instance
 ```
 
@@ -113,7 +113,7 @@ export SPANNER_EMULATOR_HOST=localhost:9010
 ```bash
 wrench migrate up \
   --directory migrations \
-  --database projects/test-project/instances/test-instance/databases/test-database
+  --database projects/test-project/instances/test-instance/databases/test-db
 ```
 
 **또는:**
@@ -137,7 +137,7 @@ Applied Migrations:
 
 ### yo 실행
 ```bash
-yo test-project test-instance test-database \
+yo test-project test-instance test-db \
   -o models -p models
 ```
 
@@ -160,7 +160,7 @@ ls -lh models/
 - [ ] yo, hammer, wrench 설치됨
 - [ ] gcloud CLI emulator 설정 완료
 - [ ] Instance `test-instance` 생성
-- [ ] Database `test-database` 생성
+- [ ] Database `test-db` 생성
 - [ ] 마이그레이션 2개 적용됨
 - [ ] models/ 디렉토리에 3개 파일 생성
 - [ ] SPANNER_EMULATOR_HOST 환경 변수 설정
@@ -173,7 +173,7 @@ make run
 
 출력:
 ```
-✅ Spanner 연결 성공: projects/test-project/instances/test-instance/databases/test-database
+✅ Spanner 연결 성공: projects/test-project/instances/test-instance/databases/test-db
 
 🚀 Spanner + yo 서버 시작
 =========================================

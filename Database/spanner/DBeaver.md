@@ -22,7 +22,7 @@ make spanner-cli
 docker-compose exec spanner-cli spanner-cli \
   -p test-project \
   -i test-instance \
-  -d test-database
+  -d test-db
 ```
 
 **사용 예:**
@@ -36,12 +36,12 @@ spanner> \d users  -- 테이블 정의 보기
 
 ```bash
 # SQL 실행
-gcloud spanner databases execute-sql test-database \
+gcloud spanner databases execute-sql test-db \
   --instance=test-instance \
   --sql="SELECT * FROM users"
 
 # DDL 확인
-gcloud spanner databases ddl describe test-database \
+gcloud spanner databases ddl describe test-db \
   --instance=test-instance
 ```
 

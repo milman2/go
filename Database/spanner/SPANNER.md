@@ -99,14 +99,14 @@ gcloud spanner databases list --instance=test-instance
 
 # 출력 예:
 # NAME          STATE
-# test-database READY
+# test-db READY
 ```
 
 ### 5. Database 상세 정보
 
 ```bash
 # Database DDL 조회
-gcloud spanner databases ddl describe test-database \
+gcloud spanner databases ddl describe test-db \
   --instance=test-instance
 
 # 출력: 모든 CREATE TABLE, CREATE INDEX 문
@@ -145,7 +145,7 @@ docker-compose up -d spanner-cli
 docker-compose exec spanner-cli spanner-cli \
   -p test-project \
   -i test-instance \
-  -d test-database
+  -d test-db
 ```
 
 **또는 Makefile 사용:**
@@ -188,12 +188,24 @@ GROUP BY u.id, u.email, u.name, u.created_at, u.updated_at;
 ### 4. 데이터 삽입
 
 ```sql
--- 단일 INSERT
+-- 단일 INSERT (Spanner는 GENERATE_UUID 대신 UUID() 사용)
 INSERT INTO users (id, email, name, created_at, updated_at)
 VALUES (
   'user-001',
   'alice@example.com',
   'Alice',
+  CURRENT_TIMESTAMP(),
+  CURRENT_TIMESTAMP()
+);
+
+-- Posts 테이블 (DEFAULT 값 활용)
+INSERT INTO posts (id, user_id, title, content, created_at, updated_at)
+VALUES (
+  'post-001',
+  'user-001',
+  'My First Post',
+  'Hello World',
+  -- published는 DEFAULT (false)로 자동 설정됨
   CURRENT_TIMESTAMP(),
   CURRENT_TIMESTAMP()
 );
@@ -811,13 +823,67 @@ func testIndexPerformance(client *spanner.Client) {
 
 ## 고급 기능 테스트
 
+### 0. Spanner 주요 기능
+
+#### DEFAULT 값 (괄호 필수!)
+
+```sql
+-- ✅ 올바른 방법
+CREATE TABLE posts (
+  id STRING(36) NOT NULL,
+  published BOOL NOT NULL DEFAULT (false),  -- 괄호 필수!
+  view_count INT64 DEFAULT (0),
+) PRIMARY KEY (id);
+
+-- ❌ 잘못된 방법
+published BOOL NOT NULL DEFAULT false  -- 에러!
+```
+
+#### FOREIGN KEY (CASCADE 미지원)
+
+```sql
+-- ✅ FOREIGN KEY 지원
+CREATE TABLE posts (
+  id STRING(36) NOT NULL,
+  user_id STRING(36) NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users (id)
+) PRIMARY KEY (id);
+
+-- ❌ CASCADE는 미지원
+-- FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+-- 대신 INTERLEAVE 사용
+```
+
+#### INTERLEAVE (부모-자식 + CASCADE DELETE)
+
+```sql
+-- 부모 테이블
+CREATE TABLE users (
+  id STRING(36) NOT NULL,
+  name STRING(100),
+) PRIMARY KEY (id);
+
+-- 자식 테이블 (INTERLEAVE + CASCADE DELETE)
+CREATE TABLE user_profiles (
+  user_id STRING(36) NOT NULL,
+  profile_id STRING(36) NOT NULL,
+  bio STRING(MAX),
+) PRIMARY KEY (user_id, profile_id),
+  INTERLEAVE IN PARENT users ON DELETE CASCADE;
+
+-- 장점:
+-- 1. 부모 삭제 시 자식도 자동 삭제 (CASCADE DELETE)
+-- 2. 같은 물리적 위치에 저장되어 성능 최적화
+-- 3. 부모-자식 조인 쿼리가 매우 빠름
+```
+
 ### 1. PENDING_COMMIT_TIMESTAMP
 
 ```sql
 -- 커밋 타임스탬프 자동 설정
 INSERT INTO users (id, email, name, created_at, updated_at)
 VALUES (
-  GENERATE_UUID(),
+  'user-uuid',
   'timestamp@example.com',
   'Timestamp Test',
   PENDING_COMMIT_TIMESTAMP(),
@@ -860,7 +926,7 @@ SELECT id, JSON_VALUE(config, '$.theme') as theme
 FROM settings;
 ```
 
-### 4. Interleaved Tables (부모-자식)
+### 4. Interleaved Tables (부모-자식) - 상세 예제
 
 ```sql
 -- 부모 테이블
@@ -876,6 +942,19 @@ CREATE TABLE books (
   title STRING(200),
 ) PRIMARY KEY (author_id, book_id),
   INTERLEAVE IN PARENT authors ON DELETE CASCADE;
+
+-- 테스트
+INSERT INTO authors (author_id, name) VALUES ('author-1', 'Alice');
+INSERT INTO books (author_id, book_id, title) VALUES ('author-1', 'book-1', 'Book 1');
+INSERT INTO books (author_id, book_id, title) VALUES ('author-1', 'book-2', 'Book 2');
+
+-- 부모 삭제 시 자식도 함께 삭제됨
+DELETE FROM authors WHERE author_id = 'author-1';
+-- books의 두 레코드도 자동 삭제!
+
+-- INTERLEAVE vs FOREIGN KEY:
+-- FOREIGN KEY: 참조 무결성만 보장, CASCADE 미지원
+-- INTERLEAVE: CASCADE DELETE 지원 + 성능 최적화 (같은 물리 저장소)
 ```
 
 ### 5. Partitioned DML

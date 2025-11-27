@@ -17,9 +17,15 @@ vendor/
 # Go 작업 공간
 go.work
 
+# 빌드된 도구
+bin/
+
 # yo 생성 파일
 models/*.yo.go
 models/
+
+# hammer export로 생성된 파일
+exported_schema.sql
 
 # 환경 변수
 .env

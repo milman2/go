@@ -7,7 +7,7 @@ echo "=================================="
 export SPANNER_EMULATOR_HOST=localhost:9010
 export PROJECT=test-project
 export INSTANCE=test-instance
-export DATABASE=test-database
+export DATABASE=test-db
 
 # 색상
 GREEN='\033[0;32m'
