@@ -150,6 +150,10 @@ test-query: ## 샘플 쿼리 테스트
 		--instance=$(SPANNER_INSTANCE_ID) \
 		--sql="SELECT u.name, COUNT(p.id) as post_count FROM users u LEFT JOIN posts p ON u.id = p.user_id WHERE p.published = TRUE OR p.published IS NULL GROUP BY u.name ORDER BY post_count DESC"
 
+.PHONY: generate-migration
+generate-migration: ${EXT_BIN_DIR}/hammer ## 스키마 diff 기반 마이그레이션 템플릿 생성
+	@./scripts/generate_migration.sh
+
 .PHONY: migrate-dml
 migrate-dml: ${EXT_BIN_DIR}/wrench ## DML 마이그레이션 실행 (wrench apply --dml) - 더 이상 사용 안 함
 	@echo "$(YELLOW)⚠️  이 명령어는 더 이상 사용되지 않습니다.$(NC)"
